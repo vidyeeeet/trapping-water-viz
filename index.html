@@ -28,8 +28,8 @@
         .terrain { background: #ecf0f1; width: 100%; border-radius: 4px 4px 0 0; }
         .label { position: absolute; bottom: -30px; width: 100%; text-align: center; color: #bdc3c7; }
         
-        /* Updated width to 100px so "index =" fits on one line */
-        .pointer { position: absolute; bottom: -75px; width: 100px; text-align: center; font-weight: bold; transition: left 0.3s ease; }
+        /* Pointer logic: centered via transform */
+        .pointer { position: absolute; bottom: -75px; min-width: 100px; text-align: center; font-weight: bold; transition: left 0.3s ease; transform: translateX(-50%); }
         .pointer-l { color: #e74c3c; }
         .pointer-r { color: #9b59b6; }
 
@@ -56,7 +56,6 @@
         </div>
 
         <div class="viz-container" id="viz">
-            <!-- Labels now centered using a -50px offset because pointer is 100px wide -->
             <div class="pointer pointer-l" id="ptrL">L<br><span id="idxL" style="font-size:12px; white-space: nowrap;">index = 0</span></div>
             <div class="pointer pointer-r" id="ptrR">R<br><span id="idxR" style="font-size:12px; white-space: nowrap;">index = 0</span></div>
         </div>
@@ -77,7 +76,7 @@
             "        maxL = max(maxL, height[l])",
             "        res += maxL - height[l]",
             "    else:",
-                "        r -= 1",
+            "        r -= 1",
             "        maxR = max(maxR, height[r])",
             "        res += maxR - height[r]",
             "",
@@ -104,15 +103,15 @@
             document.getElementById('lMax').innerText = maxL;
             document.getElementById('rMax').innerText = maxR;
             document.getElementById('totWater').innerText = res;
-            
-            // Added "index =" text here
             document.getElementById('idxL').innerText = `index = ${l}`;
             document.getElementById('idxR').innerText = `index = ${r}`;
 
-            // Updated positioning logic to center the 100px wide pointer label
-            // (i * 44) is the start of the block, +20 is the center of the block, -50 centers the 100px pointer
-            document.getElementById('ptrL').style.left = `${(l * 44 + 20) - 50}px`;
-            document.getElementById('ptrR').style.left = `${(r * 44 + 20) - 50}px`;
+            // PADDING (20) + (index * 44) + HALF BLOCK (20)
+            const leftPos = 20 + (l * 44) + 20;
+            const rightPos = 20 + (r * 44) + 20;
+
+            document.getElementById('ptrL').style.left = `${leftPos}px`;
+            document.getElementById('ptrR').style.left = `${rightPos}px`;
         }
 
         function fillWater(index, amount) {
@@ -169,7 +168,7 @@
                     maxL = Math.max(maxL, heights[l]);
                     highlightLine(8); updateUI(); yield; 
                     
-                    const trapped = maxL - heights[l];
+                    const trapped = Math.max(0, maxL - heights[l]);
                     res += trapped;
                     highlightLine(9); updateUI(); fillWater(l, trapped); yield; 
                 } else {
@@ -180,7 +179,7 @@
                     maxR = Math.max(maxR, heights[r]);
                     highlightLine(12); updateUI(); yield; 
                     
-                    const trapped = maxR - heights[r];
+                    const trapped = Math.max(0, maxR - heights[r]);
                     res += trapped;
                     highlightLine(13); updateUI(); fillWater(r, trapped); yield; 
                 }
