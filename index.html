@@ -79,7 +79,7 @@
             "while l < r:",
             "    if height[l] < height[r]:",
             "        if height[l] >= left_max:",
-            "            left_max = heights[l]",
+            "            left_max = height[l]",
             "        else:",
             "            total_water += left_max - height[l]",
             "        l += 1",
@@ -87,7 +87,7 @@
             "        if height[r] >= right_max:",
             "            right_max = height[r]",
             "        else:",
-            "            total_water += right_max - heights[r]",
+            "            total_water += right_max - height[r]",
             "        r -= 1"
         ];
 
