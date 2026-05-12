@@ -1,30 +1,21 @@
-# Trapping Rain Water Visualizer
+# Algorithm Visualizers
 
-A lightweight, interactive web visualizer for the classic "Trapping Rain Water" algorithmic problem (LeetCode #42). This tool breaks down the optimal O(N) Time / O(1) Space Two-Pointer approach step-by-step to help build an intuition for how the algorithm works.
+A collection of interactive algorithmic visualizers designed to trace through optimal solutions step-by-step. Built with vanilla HTML, CSS, and JavaScript.
 
-Live Demo: https://vidyeeeet.github.io/trapping-water-viz/
+## Live Demo
+**[View the Visualizers Here](https://vidyeeeet.github.io/trapping-water-viz/)**
 
----
+## Visualizations Included
 
-## Features
-* Custom Inputs: Type any comma-separated array of heights to test your own test cases.
-* Step-by-Step Execution: Click "Next Step" to walk through the algorithm one logical operation at a time.
-* Live Code Highlighting: Watch the actual Python code highlight in real-time as the pointers move.
-* Dynamic Variable Tracking: Live updates for left_max, right_max, total_water, and pointer indices (L, R).
-* Zero Dependencies: Built entirely with vanilla HTML, CSS, and JavaScript. No npm, no servers, no frameworks.
+### 1. Trapping Rain Water
+Traces the optimal $O(n)$ Two-Pointer algorithm to compute the volume of trapped water between elevation maps.
 
-## How to Run Locally
-Because this project has zero dependencies, running it locally takes 2 seconds:
+### 2. Best Time to Buy and Sell Stock
+Visualizes the $O(n)$ Sliding Window/Two-Pointer approach to find the maximum potential profit, demonstrating when the algorithm updates the baseline "buy" floor vs extending the "sell" scout.
 
-1. Clone or download this repository to your computer.
-2. Double-click the index.html file.
-3. It will open in your default web browser and run perfectly.
+## Local Setup
+Because this project uses pure HTML/JS/CSS without a build step, you can simply clone the repository and open `index.html` in your browser.
 
-## How to Use
-1. Input Data: In the top left input box, enter a list of integers separated by commas (e.g., 4, 2, 0, 3, 2, 5).
-2. Initialize: Click the Generate button to build the 2D terrain block.
-3. Step Through: Click Next Step to advance the algorithm. Watch the pointers move, the variables update, and the code highlight exactly what logic is firing.
-4. Reset: Click the Reset button (or Generate again) to start over.
-
----
-Built to make algorithmic intuition a little easier to grasp.
+```bash
+git clone [https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY_NAME.git](https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY_NAME.git)
+cd YOUR_REPOSITORY_NAME
