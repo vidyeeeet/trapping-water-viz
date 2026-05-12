@@ -7,7 +7,7 @@
     <style>
         body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #141414; color: #fff; display: flex; height: 100vh; overflow: hidden; }
         .pane { flex: 1; padding: 20px; display: flex; flex-direction: column; }
-        .left-pane { border-right: 2px solid #333; align-items: center; }
+        .left-pane { border-right: 2px solid #333; align-items: center; position: relative; } /* Added position relative */
         .right-pane { background: #0f0f0f; font-family: monospace; font-size: 18px; padding: 40px; overflow-y: auto; }
         
         .controls { display: flex; gap: 10px; margin-bottom: 20px; width: 100%; justify-content: center; align-items: center; }
@@ -21,15 +21,21 @@
         .stat-water { color: #3498db; font-size: 24px; }
         .stat-l { color: #e74c3c; }
         .stat-r { color: #9b59b6; }
-
-        .viz-container { position: relative; height: 400px; display: flex; align-items: flex-end; gap: 4px; border-bottom: 4px solid #2c3e50; padding: 0 20px; }
-        .column { position: relative; width: 40px; display: flex; flex-direction: column; justify-content: flex-end; }
-        .water { background: #3498db; opacity: 0.8; width: 100%; transition: height 0.3s ease; }
-        .terrain { background: #ecf0f1; width: 100%; border-radius: 4px 4px 0 0; }
-        .label { position: absolute; bottom: -30px; width: 100%; text-align: center; color: #bdc3c7; }
         
-        /* Pointer logic: centered via transform */
-        .pointer { position: absolute; bottom: -75px; min-width: 100px; text-align: center; font-weight: bold; transition: left 0.3s ease; transform: translateX(-50%); }
+        /* FIX: Added Back Link Style */
+        .back-link { position: absolute; top: 10px; left: 10px; color: #bdc3c7; text-decoration: none; font-size: 14px; padding: 5px 10px; background: rgba(255,255,255,0.05); border-radius: 4px; }
+        .back-link:hover { color: #fff; background: rgba(255,255,255,0.1); }
+
+        .viz-container { position: relative; height: 400px; display: flex; align-items: flex-end; gap: 2px; border-bottom: 4px solid #2c3e50; padding: 0 10px; }
+        /* FIX: Made columns thinner (width: 25px, was 40px) */
+        .column { position: relative; width: 25px; display: flex; flex-direction: column; justify-content: flex-end; }
+        .water { background: #3498db; opacity: 0.8; width: 100%; transition: height 0.3s ease; }
+        .terrain { background: #ecf0f1; width: 100%; border-radius: 2px 2px 0 0; }
+        .label { position: absolute; bottom: -20px; width: 100%; text-align: center; color: #bdc3c7; font-size: 12px; }
+        
+        /* FIX: Pointer logic updated for thinner layout and prevented text overlap */
+        .pointer { position: absolute; bottom: -70px; min-width: 60px; text-align: center; font-weight: bold; transition: left 0.3s ease; transform: translateX(-50%); white-space: nowrap; font-size: 16px;}
+        .pointer span { font-size: 10px; } /* Thinner index text */
         .pointer-l { color: #e74c3c; }
         .pointer-r { color: #9b59b6; }
 
@@ -40,6 +46,7 @@
 <body>
 
     <div class="pane left-pane">
+        <a href="index.html" class="back-link">← Hub</a>
         <h2>Trapping Rain Water</h2>
         
         <div class="controls">
@@ -56,8 +63,8 @@
         </div>
 
         <div class="viz-container" id="viz">
-            <div class="pointer pointer-l" id="ptrL">L<br><span id="idxL" style="font-size:12px; white-space: nowrap;">index = 0</span></div>
-            <div class="pointer pointer-r" id="ptrR">R<br><span id="idxR" style="font-size:12px; white-space: nowrap;">index = 0</span></div>
+            <div class="pointer pointer-l" id="ptrL">l<br><span id="idxL">idx = 0</span></div>
+            <div class="pointer pointer-r" id="ptrR">r<br><span id="idxR">idx = 0</span></div>
         </div>
     </div>
 
@@ -85,11 +92,16 @@
 
         let heights = [], l = 0, r = 0, maxL = 0, maxR = 0, res = 0;
         let stepGenerator = null;
-        const UNIT = 40;
+        // FIX: Thinner UNIT
+        const UNIT = 40; 
+        // FIX: Consistent width tracking (COL_WIDTH + GAP)
+        const COL_TRACK = 27; 
+        // FIX: LEFT PADDING 
+        const PAD = 10; 
 
         function renderCode() {
             const box = document.getElementById('codeBox');
-            box.innerHTML = codeLines.map((line, i) => `<div class="code-line" id="line-${i}">${line}</div>`).join('');
+            box.innerHTML = codeLines.map((line, idx) => `<div class="code-line" id="line-${idx}">${line}</div>`).join('');
         }
 
         function highlightLine(lineNum) {
@@ -103,12 +115,12 @@
             document.getElementById('lMax').innerText = maxL;
             document.getElementById('rMax').innerText = maxR;
             document.getElementById('totWater').innerText = res;
-            document.getElementById('idxL').innerText = `index = ${l}`;
-            document.getElementById('idxR').innerText = `index = ${r}`;
+            document.getElementById('idxL').innerText = `idx = ${l}`;
+            document.getElementById('idxR').innerText = `idx = ${r}`;
 
-            // PADDING (20) + (index * 44) + HALF BLOCK (20)
-            const leftPos = 20 + (l * 44) + 20;
-            const rightPos = 20 + (r * 44) + 20;
+            // FIX: Positioning logic updated for thinner columns and thinner gap
+            const leftPos = PAD + (l * COL_TRACK) + 12; // (25 col width / 2)
+            const rightPos = PAD + (r * COL_TRACK) + 12;
 
             document.getElementById('ptrL').style.left = `${leftPos}px`;
             document.getElementById('ptrR').style.left = `${rightPos}px`;
@@ -128,15 +140,18 @@
             const viz = document.getElementById('viz');
             viz.querySelectorAll('.column').forEach(e => e.remove());
 
-            heights.forEach((h, i) => {
+            heights.forEach((h, idx) => {
                 const col = document.createElement('div');
                 col.className = 'column';
                 col.innerHTML = `
-                    <div class="water" id="water-${i}" style="height: 0px;"></div>
+                    <div class="water" id="water-${idx}" style="height: 0px;"></div>
                     <div class="terrain" style="height: ${h * UNIT}px;"></div>
                     <div class="label">${h}</div>
                 `;
-                viz.insertBefore(col, document.getElementById('ptrL'));
+                // FIX: Ensure ptrL exists before inserting
+                const ptrL = document.getElementById('ptrL');
+                if (ptrL) viz.insertBefore(col, ptrL);
+                else viz.appendChild(col); // Fallback
             });
 
             l = 0; 
