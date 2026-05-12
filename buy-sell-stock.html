@@ -7,7 +7,7 @@
     <style>
         body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #141414; color: #fff; display: flex; height: 100vh; overflow: hidden; }
         .pane { flex: 1; padding: 20px; display: flex; flex-direction: column; }
-        .left-pane { border-right: 2px solid #333; align-items: center; }
+        .left-pane { border-right: 2px solid #333; align-items: center; position: relative; } /* Added position relative */
         .right-pane { background: #0f0f0f; font-family: monospace; font-size: 18px; padding: 40px; overflow-y: auto; }
         
         .controls { display: flex; gap: 10px; margin-bottom: 20px; width: 100%; justify-content: center; align-items: center; }
@@ -21,16 +21,19 @@
         .stat-water { color: #2ecc71; font-size: 24px; } /* Green for profit */
         .stat-l { color: #e74c3c; }
         .stat-r { color: #9b59b6; }
-        .back-link { position: absolute; top: 20px; left: 20px; color: #bdc3c7; text-decoration: none; font-size: 14px; }
-        .back-link:hover { color: #fff; }
-
-        .viz-container { position: relative; height: 400px; display: flex; align-items: flex-end; gap: 4px; border-bottom: 4px solid #2c3e50; padding: 0 20px; }
-        .column { position: relative; width: 40px; display: flex; flex-direction: column; justify-content: flex-end; }
-        .terrain { background: #ecf0f1; width: 100%; border-radius: 4px 4px 0 0; transition: background 0.3s; }
-        .label { position: absolute; bottom: -30px; width: 100%; text-align: center; color: #bdc3c7; }
         
-        /* Pointer logic: centered via transform */
-        .pointer { position: absolute; bottom: -75px; min-width: 100px; text-align: center; font-weight: bold; transition: left 0.3s ease; transform: translateX(-50%); }
+        .back-link { position: absolute; top: 10px; left: 10px; color: #bdc3c7; text-decoration: none; font-size: 14px; padding: 5px 10px; background: rgba(255,255,255,0.05); border-radius: 4px; }
+        .back-link:hover { color: #fff; background: rgba(255,255,255,0.1); }
+
+        .viz-container { position: relative; height: 400px; display: flex; align-items: flex-end; gap: 2px; border-bottom: 4px solid #2c3e50; padding: 0 10px; }
+        /* FIX: Made columns thinner (width: 25px) */
+        .column { position: relative; width: 25px; display: flex; flex-direction: column; justify-content: flex-end; }
+        .terrain { background: #ecf0f1; width: 100%; border-radius: 2px 2px 0 0; transition: background 0.3s; }
+        .label { position: absolute; bottom: -20px; width: 100%; text-align: center; color: #bdc3c7; font-size: 12px; }
+        
+        /* FIX: Pointer logic updated for thinner layout and prevented text overlap */
+        .pointer { position: absolute; bottom: -70px; min-width: 60px; text-align: center; font-weight: bold; transition: left 0.3s ease; transform: translateX(-50%); white-space: nowrap; font-size: 16px; }
+        .pointer span { font-size: 10px; } /* Thinner index text */
         .pointer-l { color: #e74c3c; } /* Buy Pointer */
         .pointer-r { color: #9b59b6; } /* Sell Pointer */
 
@@ -41,7 +44,7 @@
 <body>
 
     <div class="pane left-pane">
-        <a href="index.html" class="back-link">← Back to Hub</a>
+        <a href="index.html" class="back-link">← Hub</a>
         <h2>Best Time to Buy and Sell Stock</h2>
         
         <div class="controls">
@@ -58,8 +61,8 @@
         </div>
 
         <div class="viz-container" id="viz">
-            <div class="pointer pointer-l" id="ptrL">i (Buy)<br><span id="idxL" style="font-size:12px; white-space: nowrap;">index = 0</span></div>
-            <div class="pointer pointer-r" id="ptrR">j (Sell)<br><span id="idxR" style="font-size:12px; white-space: nowrap;">index = 1</span></div>
+            <div class="pointer pointer-l" id="ptrL">i<br><span id="idxL">idx = 0</span></div>
+            <div class="pointer pointer-r" id="ptrR">j<br><span id="idxR">idx = 1</span></div>
         </div>
     </div>
 
@@ -85,7 +88,11 @@
 
         let prices = [], i = 0, j = 1, maxDiff = 0;
         let stepGenerator = null;
-        const UNIT = 40;
+        // FIX: Consistent UNIT for heights
+        const UNIT = 40; 
+        // FIX: Updated positioning math for thinner columns (25 col width + 2 gap = 27 track)
+        const COL_TRACK = 27; 
+        const PAD = 10; 
 
         function renderCode() {
             const box = document.getElementById('codeBox');
@@ -104,19 +111,25 @@
             document.getElementById('sellVal').innerText = prices[j] !== undefined ? prices[j] : '-';
             document.getElementById('maxProfit').innerText = maxDiff;
             
-            document.getElementById('idxL').innerText = `index = ${i}`;
-            document.getElementById('idxR').innerText = j < prices.length ? `index = ${j}` : `Out of Bounds`;
+            document.getElementById('idxL').innerText = `idx = ${i}`;
+            document.getElementById('idxR').innerText = j < prices.length ? `idx = ${j}` : `END`;
 
-            const leftPos = 20 + (i * 44) + 20;
-            // Cap right pointer position if it goes out of bounds to prevent layout breaking
-            const safeJ = Math.min(j, prices.length - 1);
-            const rightPos = 20 + (safeJ * 44) + 20;
-
-            document.getElementById('ptrL').style.left = `${leftPos}px`;
+            // FIX: Repositioning logic updated for thinnerColumns and reduced padding
+            const leftPos = PAD + (i * COL_TRACK) + 12; // (25 col width / 2)
             
             const ptrR = document.getElementById('ptrR');
-            ptrR.style.left = `${rightPos}px`;
-            ptrR.style.opacity = j < prices.length ? "1" : "0.3";
+            if (j < prices.length) {
+                const rightPos = PAD + (j * COL_TRACK) + 12;
+                ptrR.style.left = `${rightPos}px`;
+                ptrR.style.opacity = "1";
+            } else {
+                // If j goes past the end (for return line), keep it at the end
+                const endPos = PAD + (prices.length * COL_TRACK) + 12;
+                ptrR.style.left = `${endPos}px`;
+                ptrR.style.opacity = "0.3"; // fade out when 'scout' is done
+            }
+            
+            document.getElementById('ptrL').style.left = `${leftPos}px`;
         }
 
         function init() {
