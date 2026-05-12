@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buy & Sell Stock Visualizer</title> 
+    <style>
+        body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #141414; color: #fff; display: flex; height: 100vh; overflow: hidden; }
+        .pane { flex: 1; padding: 20px; display: flex; flex-direction: column; }
+        .left-pane { border-right: 2px solid #333; align-items: center; }
+        .right-pane { background: #0f0f0f; font-family: monospace; font-size: 18px; padding: 40px; overflow-y: auto; }
+        
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; width: 100%; justify-content: center; align-items: center; }
+        input { background: #222; border: 1px solid #444; color: #fff; padding: 10px; font-size: 16px; border-radius: 4px; width: 300px; text-align: center; }
+        button { background: #3498db; border: none; color: white; padding: 10px 20px; font-size: 16px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background: #2980b9; }
+        button.reset { background: #e74c3c; }
+        button.reset:hover { background: #c0392b; }
+
+        .stats { display: flex; gap: 40px; margin-bottom: 40px; font-size: 20px; font-weight: bold; }
+        .stat-water { color: #2ecc71; font-size: 24px; } /* Green for profit */
+        .stat-l { color: #e74c3c; }
+        .stat-r { color: #9b59b6; }
+        .back-link { position: absolute; top: 20px; left: 20px; color: #bdc3c7; text-decoration: none; font-size: 14px; }
+        .back-link:hover { color: #fff; }
+
+        .viz-container { position: relative; height: 400px; display: flex; align-items: flex-end; gap: 4px; border-bottom: 4px solid #2c3e50; padding: 0 20px; }
+        .column { position: relative; width: 40px; display: flex; flex-direction: column; justify-content: flex-end; }
+        .terrain { background: #ecf0f1; width: 100%; border-radius: 4px 4px 0 0; transition: background 0.3s; }
+        .label { position: absolute; bottom: -30px; width: 100%; text-align: center; color: #bdc3c7; }
+        
+        /* Pointer logic: centered via transform */
+        .pointer { position: absolute; bottom: -75px; min-width: 100px; text-align: center; font-weight: bold; transition: left 0.3s ease; transform: translateX(-50%); }
+        .pointer-l { color: #e74c3c; } /* Buy Pointer */
+        .pointer-r { color: #9b59b6; } /* Sell Pointer */
+
+        .code-line { padding: 4px 8px; border-radius: 4px; transition: background 0.2s; white-space: pre; }
+        .active-line { background: #2c3e50; color: #61dafb; }
+    </style>
+</head>
+<body>
+
+    <div class="pane left-pane">
+        <a href="index.html" class="back-link">← Back to Hub</a>
+        <h2>Best Time to Buy and Sell Stock</h2>
+        
+        <div class="controls">
+            <input type="text" id="arrInput" value="7, 1, 5, 3, 6, 4">
+            <button onclick="init()">Generate</button>
+            <button onclick="nextStep()" id="nextBtn">Next Step</button>
+            <button class="reset" onclick="init()">Reset</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-l">Buy [i]: <span id="buyVal">0</span></div>
+            <div class="stat-water">Max Profit: <span id="maxProfit">0</span></div>
+            <div class="stat-r">Sell [j]: <span id="sellVal">0</span></div>
+        </div>
+
+        <div class="viz-container" id="viz">
+            <div class="pointer pointer-l" id="ptrL">i (Buy)<br><span id="idxL" style="font-size:12px; white-space: nowrap;">index = 0</span></div>
+            <div class="pointer pointer-r" id="ptrR">j (Sell)<br><span id="idxR" style="font-size:12px; white-space: nowrap;">index = 1</span></div>
+        </div>
+    </div>
+
+    <div class="pane right-pane" id="codeBox"></div>
+
+    <script>
+        const codeLines = [
+            "i = 0",
+            "j = 1",
+            "maxDiff = 0",
+            "",
+            "while j < len(prices):",
+            "    if prices[j] > prices[i]:",
+            "        diff = prices[j] - prices[i]",
+            "        maxDiff = max(diff, maxDiff)",
+            "    else:",
+            "        i = j",
+            "    ",
+            "    j += 1",
+            "",
+            "return maxDiff"
+        ];
+
+        let prices = [], i = 0, j = 1, maxDiff = 0;
+        let stepGenerator = null;
+        const UNIT = 40;
+
+        function renderCode() {
+            const box = document.getElementById('codeBox');
+            box.innerHTML = codeLines.map((line, idx) => `<div class="code-line" id="line-${idx}">${line}</div>`).join('');
+        }
+
+        function highlightLine(lineNum) {
+            document.querySelectorAll('.code-line').forEach(el => el.classList.remove('active-line'));
+            if (lineNum !== null && document.getElementById(`line-${lineNum}`)) {
+                document.getElementById(`line-${lineNum}`).classList.add('active-line');
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('buyVal').innerText = prices[i] !== undefined ? prices[i] : '-';
+            document.getElementById('sellVal').innerText = prices[j] !== undefined ? prices[j] : '-';
+            document.getElementById('maxProfit').innerText = maxDiff;
+            
+            document.getElementById('idxL').innerText = `index = ${i}`;
+            document.getElementById('idxR').innerText = j < prices.length ? `index = ${j}` : `Out of Bounds`;
+
+            const leftPos = 20 + (i * 44) + 20;
+            // Cap right pointer position if it goes out of bounds to prevent layout breaking
+            const safeJ = Math.min(j, prices.length - 1);
+            const rightPos = 20 + (safeJ * 44) + 20;
+
+            document.getElementById('ptrL').style.left = `${leftPos}px`;
+            
+            const ptrR = document.getElementById('ptrR');
+            ptrR.style.left = `${rightPos}px`;
+            ptrR.style.opacity = j < prices.length ? "1" : "0.3";
+        }
+
+        function init() {
+            const input = document.getElementById('arrInput').value;
+            prices = input.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+            
+            if (prices.length < 2) {
+                alert("Please provide at least 2 prices.");
+                return;
+            }
+
+            const viz = document.getElementById('viz');
+            viz.querySelectorAll('.column').forEach(e => e.remove());
+
+            prices.forEach((h, idx) => {
+                const col = document.createElement('div');
+                col.className = 'column';
+                col.innerHTML = `
+                    <div class="terrain" id="col-${idx}" style="height: ${h * UNIT}px;"></div>
+                    <div class="label">${h}</div>
+                `;
+                viz.insertBefore(col, document.getElementById('ptrL'));
+            });
+
+            i = 0; 
+            j = 1;
+            maxDiff = 0;
+
+            document.getElementById('nextBtn').disabled = false;
+            renderCode();
+            highlightLine(0);
+            updateUI();
+            stepGenerator = runAlgorithm();
+        }
+
+        function* runAlgorithm() {
+            highlightLine(0); yield; 
+            highlightLine(1); yield; 
+            highlightLine(2); yield; 
+
+            while (j < prices.length) {
+                highlightLine(4); yield; 
+                highlightLine(5); yield; 
+
+                if (prices[j] > prices[i]) {
+                    highlightLine(6); yield; 
+                    const diff = prices[j] - prices[i];
+                    
+                    highlightLine(7); 
+                    maxDiff = Math.max(diff, maxDiff);
+                    
+                    // Highlight the profitable column briefly
+                    document.getElementById(`col-${j}`).style.background = '#2ecc71';
+                    updateUI(); 
+                    yield; 
+                    document.getElementById(`col-${j}`).style.background = '#ecf0f1';
+                    
+                } else {
+                    highlightLine(8); yield; 
+                    highlightLine(9); 
+                    i = j;
+                    updateUI(); 
+                    yield; 
+                }
+                
+                highlightLine(11); 
+                j++;
+                updateUI(); 
+                yield; 
+            }
+            highlightLine(13); 
+            document.getElementById('nextBtn').disabled = true;
+        }
+
+        function nextStep() {
+            if (stepGenerator) stepGenerator.next();
+        }
+
+        init();
+    </script>
+</body>
+</html>
