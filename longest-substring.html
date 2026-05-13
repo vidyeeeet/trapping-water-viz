@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Longest Substring Visualizer</title> 
+    <style>
+        body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #141414; color: #fff; display: flex; height: 100vh; overflow: hidden; }
+        .pane { flex: 1; padding: 20px; display: flex; flex-direction: column; }
+        .left-pane { border-right: 2px solid #333; align-items: center; position: relative; }
+        .right-pane { background: #0f0f0f; font-family: monospace; font-size: 18px; padding: 40px; overflow-y: auto; }
+        
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; width: 100%; justify-content: center; align-items: center; }
+        input { background: #222; border: 1px solid #444; color: #fff; padding: 10px; font-size: 16px; border-radius: 4px; width: 300px; text-align: center; letter-spacing: 2px; }
+        button { background: #3498db; border: none; color: white; padding: 10px 20px; font-size: 16px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background: #2980b9; }
+
+        .stats { display: flex; gap: 40px; margin-bottom: 40px; font-size: 20px; font-weight: bold; }
+        .stat-main { color: #f1c40f; font-size: 24px; } 
+        .stat-set { color: #bdc3c7; font-size: 16px; font-family: monospace; background: #222; padding: 5px 15px; border-radius: 4px; }
+
+        .back-link { position: absolute; top: 10px; left: 10px; color: #bdc3c7; text-decoration: none; font-size: 14px; padding: 5px 10px; background: rgba(255,255,255,0.05); border-radius: 4px; }
+        .back-link:hover { color: #fff; background: rgba(255,255,255,0.1); }
+
+        .viz-container { position: relative; height: 250px; display: flex; align-items: flex-end; gap: 4px; border-bottom: 4px solid #2c3e50; padding: 0 10px; }
+        
+        .column { position: relative; width: 40px; display: flex; flex-direction: column; justify-content: flex-end; }
+        .char-box { background: #34495e; width: 100%; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: bold; border-radius: 4px; font-size: 20px; transition: background 0.3s; z-index: 2; }
+        .in-window { background: #3498db; color: #fff; box-shadow: 0 0 10px rgba(52, 152, 219, 0.5); }
+        .label { position: absolute; bottom: -25px; width: 100%; text-align: center; color: #bdc3c7; font-size: 12px; }
+        
+        /* STAGGERED POINTERS TO PREVENT OVERLAP */
+        .pointer { position: absolute; min-width: 60px; text-align: center; font-weight: bold; transition: left 0.3s ease; transform: translateX(-50%); white-space: nowrap; font-size: 16px; z-index: 10; }
+        .pointer span { font-size: 11px; font-weight: normal; } 
+        
+        /* 'r' pointer is closer to the boxes */
+        .pointer-r { bottom: -65px; color: #9b59b6; }
+        
+        /* 'l' pointer is lower to avoid crashing text */
+        .pointer-l { bottom: -105px; color: #e74c3c; } 
+
+        /* Visual connection line for 'l' pointer */
+        .pointer-l::before { content: ''; position: absolute; top: -15px; left: 50%; width: 2px; height: 15px; background: #e74c3c; transform: translateX(-50%); opacity: 0.5;}
+
+        .code-line { padding: 4px 8px; border-radius: 4px; transition: background 0.2s; white-space: pre; }
+        .active-line { background: #2c3e50; color: #61dafb; }
+    </style>
+</head>
+<body>
+
+    <div class="pane left-pane">
+        <a href="index.html" class="back-link">← Hub</a>
+        <h2>Longest Substring Without Repeating Characters</h2>
+        
+        <div class="controls">
+            <input type="text" id="strInput" value="abcabcbb">
+            <button onclick="init()">Generate</button>
+            <button onclick="nextStep()" id="nextBtn">Next Step</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-main">Longest: <span id="maxLen">0</span></div>
+            <div class="stat-set">subSet: { <span id="setItems"></span> }</div>
+        </div>
+
+        <div class="viz-container" id="viz">
+            <div class="pointer pointer-l" id="ptrL">l<br><span>idx = 0</span></div>
+            <div class="pointer pointer-r" id="ptrR">r<br><span>idx = 0</span></div>
+        </div>
+    </div>
+
+    <div class="pane right-pane" id="codeBox"></div>
+
+    <script>
+        const codeLines = [
+            "l, r = 0, 0",
+            "longest = 0",
+            "subSet = set()",
+            "",
+            "while r < len(s) and l <= r:",
+            "    while s[r] in subSet:",
+            "        subSet.remove(s[l])",
+            "        l += 1",
+            "    ",
+            "    subSet.add(s[r])",
+            "    longest = max(longest, len(subSet))",
+            "    r += 1",
+            "",
+            "return longest"
+        ];
+
+        let s = "", l = 0, r = 0, longest = 0, subSet = new Set();
+        let stepGenerator = null;
+        
+        // Match column width (40) + gap (4)
+        const COL_TRACK = 44; 
+        const PAD = 10;
+
+        function renderCode() {
+            document.getElementById('codeBox').innerHTML = codeLines.map((line, idx) => `<div class="code-line" id="line-${idx}">${line}</div>`).join('');
+        }
+
+        function highlightLine(lineNum) {
+            document.querySelectorAll('.code-line').forEach(el => el.classList.remove('active-line'));
+            if (lineNum !== null && document.getElementById(`line-${lineNum}`)) {
+                document.getElementById(`line-${lineNum}`).classList.add('active-line');
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('maxLen').innerText = longest;
+            document.getElementById('setItems').innerText = Array.from(subSet).join(', ');
+            
+            document.querySelector('#ptrL span').innerText = `idx = ${l}`;
+            document.querySelector('#ptrR span').innerText = r < s.length ? `idx = ${r}` : `END`;
+
+            // Calculate exact center of the column
+            const leftPos = PAD + (l * COL_TRACK) + 20; 
+            
+            // Cap right pointer so it doesn't fly off screen at the end
+            const safeR = Math.min(r, s.length - 1);
+            const rightPos = PAD + (safeR * COL_TRACK) + 20;
+
+            document.getElementById('ptrL').style.left = `${leftPos}px`;
+            
+            const ptrR_el = document.getElementById('ptrR');
+            ptrR_el.style.left = `${rightPos}px`;
+            ptrR_el.style.opacity = r < s.length ? "1" : "0.3";
+
+            // Color the window boxes
+            for(let i = 0; i < s.length; i++) {
+                const box = document.getElementById(`box-${i}`);
+                if (box) {
+                    if (i >= l && i < r) {
+                        box.classList.add('in-window');
+                    } else if (i === r && subSet.has(s[r])) {
+                        // Highlight duplicate in red briefly if it clashes
+                        box.style.background = '#e74c3c';
+                        setTimeout(() => box.style.background = '', 300);
+                    } else {
+                        box.classList.remove('in-window');
+                    }
+                }
+            }
+        }
+
+        function init() {
+            s = document.getElementById('strInput').value.trim();
+            if (!s) return;
+            
+            const viz = document.getElementById('viz');
+            viz.querySelectorAll('.column').forEach(e => e.remove());
+
+            for (let i = 0; i < s.length; i++) {
+                const col = document.createElement('div');
+                col.className = 'column';
+                col.innerHTML = `
+                    <div class="char-box" id="box-${i}">${s[i]}</div>
+                    <div class="label">${i}</div>
+                `;
+                viz.insertBefore(col, document.getElementById('ptrL'));
+            }
+
+            l = 0; r = 0; longest = 0; subSet = new Set();
+            document.getElementById('nextBtn').disabled = false;
+            
+            renderCode();
+            highlightLine(0);
+            updateUI();
+            stepGenerator = runAlgorithm();
+        }
+
+        function* runAlgorithm() {
+            highlightLine(0); yield;
+            highlightLine(1); yield;
+            highlightLine(2); yield;
+
+            while (r < s.length && l <= r) {
+                highlightLine(4); yield;
+                highlightLine(5); yield;
+                
+                while (subSet.has(s[r])) {
+                    highlightLine(6); 
+                    subSet.delete(s[l]);
+                    updateUI(); yield;
+                    
+                    highlightLine(7); 
+                    l++;
+                    updateUI(); yield;
+                    
+                    highlightLine(5); yield;
+                }
+                
+                highlightLine(9); 
+                subSet.add(s[r]);
+                // Highlight the new added char to window
+                document.getElementById(`box-${r}`).classList.add('in-window');
+                updateUI(); yield;
+                
+                highlightLine(10); 
+                longest = Math.max(longest, subSet.size);
+                updateUI(); yield;
+                
+                highlightLine(11);
+                r++;
+                updateUI(); yield;
+            }
+            highlightLine(13);
+            document.getElementById('nextBtn').disabled = true;
+        }
+
+        function nextStep() {
+            if (stepGenerator) stepGenerator.next();
+        }
+
+        init();
+    </script>
+</body>
+</html>
